@@ -1,0 +1,5 @@
+[
+    { "id": "ID-1001", "nombre": "Ana Pérez", "vencimiento": "2026-12-31", "ingreso": "07:00 AM", "salida": "02:00 PM" },
+    { "id": "ID-1002", "nombre": "Luis Gómez", "vencimiento": "2025-05-15", "ingreso": "07:30 AM", "salida": "01:30 PM" },
+    { "id": "7501234567890", "nombre": "Carlos Ruiz", "vencimiento": "2027-08-20", "ingreso": "08:00 AM", "salida": "03:00 PM" }
+]

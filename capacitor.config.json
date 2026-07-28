@@ -1,0 +1,6 @@
+{
+  "appId": "com.rmunoz.asistencia",
+  "appName": "Asistencia App",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
