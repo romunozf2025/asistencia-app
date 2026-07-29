@@ -205,7 +205,8 @@
         <div class="panel-config">
             <div>
                 <label for="csv-upload" class="btn-cargar">📥 Cargar Base de Datos</label>
-                <input type="file" id="csv-upload" accept=".csv" style="display: none;">
+                <!-- LÍNEA MODIFICADA PARA EVITAR EL BLOQUEO DE ANDROID -->
+                <input type="file" id="csv-upload" accept=".csv, text/csv, text/plain, */*" style="display: none;">
             </div>
             <div>
                 <button id="btn-descargar" class="btn-descargar">📤 Exportar Entradas y Salidas</button>
@@ -415,10 +416,8 @@
                 return;
             }
 
-            // MODIFICACIÓN: Ahora guardamos un objeto con las horas exactas
             let estadoActual = registrosDiarios[codigo];
             
-            // Compatibilidad si hay datos viejos guardados como texto plano en el teléfono
             if (typeof estadoActual === 'string') {
                 estadoActual = { estado: estadoActual, horaIngreso: 'Previa', horaSalida: '---' };
             }
@@ -441,17 +440,14 @@
             }
         }
 
-        // --- FUNCIÓN DE EXPORTACIÓN EXCEL/CSV ---
         document.getElementById('btn-descargar').addEventListener('click', () => {
             if (Object.keys(registrosDiarios).length === 0) {
                 alert('No hay registros de asistencia el día de hoy para exportar.');
                 return;
             }
 
-            // Encabezados del archivo Excel
             let csvContent = "ID,Nombre,Cargo,Hora Ingreso,Hora Salida\n";
 
-            // Buscar cada registro del día en la base de datos para ponerle nombre y cargo
             for (const codigo in registrosDiarios) {
                 const registro = registrosDiarios[codigo];
                 const usuario = baseDeDatos.find(u => u.id.toLowerCase() === codigo);
@@ -461,11 +457,9 @@
                 }
             }
 
-            // Crear el archivo con compatibilidad para caracteres latinos (UTF-8)
             const nombreArchivo = `Reporte_Asistencia_${new Date().toISOString().split('T')[0]}.csv`;
             const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
 
-            // Detectar si el celular soporta el menú nativo de "Compartir" (WhatsApp, Correo, etc.)
             const file = new File([blob], nombreArchivo, { type: 'text/csv' });
             
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -475,7 +469,6 @@
                     files: [file]
                 }).catch(error => console.log('Operación de compartir cancelada', error));
             } else {
-                // Descarga clásica si se usa en una computadora
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
