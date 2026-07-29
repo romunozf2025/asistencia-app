@@ -205,7 +205,6 @@
         <div class="panel-config">
             <div>
                 <label for="csv-upload" class="btn-cargar">📥 Cargar Base de Datos</label>
-                <!-- LÍNEA MODIFICADA PARA EVITAR EL BLOQUEO DE ANDROID -->
                 <input type="file" id="csv-upload" accept=".csv, text/csv, text/plain, */*" style="display: none;">
             </div>
             <div>
@@ -227,6 +226,7 @@
 
                 <div id="info-alumno" class="info-alumno">
                     <p><strong>👤 Nombre:</strong> <span id="dato-nombre"></span></p>
+                    <p><strong>🎓 Grado/Grupo:</strong> <span id="dato-grado"></span></p>
                     <p><strong>💼 Cargo:</strong> <span id="dato-cargo"></span></p>
                     <p><strong>📅 Vigencia:</strong> <span id="dato-vigencia"></span></p>
                     <hr style="border: 0; border-top: 1px solid #dee2e6; margin: 15px 0;">
@@ -326,6 +326,7 @@
             return resultado.map(v => v.trim());
         }
 
+        // --- SECCIÓN MODIFICADA PARA 10 COLUMNAS ---
         function procesarCSV(texto) {
             const textoLimpio = texto.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             const lineas = textoLimpio.split('\n');
@@ -334,10 +335,17 @@
             for (let i = 1; i < lineas.length; i++) {
                 if (lineas[i].trim() === '') continue;
                 const columnas = parsearLineaCSV(lineas[i]);
-                if (columnas.length >= 6 && columnas[0] !== '') {
+                
+                // Aseguramos que lea tu estructura exacta de 10 columnas
+                if (columnas.length >= 9 && columnas[1] !== '') {
                     dataTemporal.push({
-                        id: columnas[0], nombre: columnas[1], vencimiento: columnas[2],
-                        ingreso: columnas[3], salida: columnas[4], cargo: columnas[5]
+                        id: columnas[1],                             // Columna B (ID)
+                        nombre: columnas[2],                         // Columna C (NOMBRE)
+                        gradoGrupo: columnas[3] + " " + columnas[4], // Columna D (GRADO) y E (GRUPO)
+                        vencimiento: columnas[6],                    // Columna G (VENCIMIENTO)
+                        ingreso: columnas[7],                        // Columna H (INGRESO)
+                        salida: columnas[8],                         // Columna I (SALIDA)
+                        cargo: columnas[9] || "Alumno"               // Columna J (CARGO)
                     });
                 }
             }
@@ -346,9 +354,9 @@
                 baseDeDatos = dataTemporal;
                 localStorage.setItem('institucionDB', JSON.stringify(baseDeDatos));
                 actualizarEstadoDB(true);
-                alert(`¡Éxito! Se cargaron ${baseDeDatos.length} registros.`);
+                alert(`¡Éxito! Se cargaron ${baseDeDatos.length} registros con formato de 10 columnas.`);
             } else {
-                alert('Error: El archivo CSV debe tener 6 columnas (ID, Nombre, Vencimiento, Ingreso, Salida, Cargo).');
+                alert('Error: El archivo CSV no coincide con la plantilla. Asegúrate de tener las 10 columnas en orden.');
             }
         }
 
@@ -370,6 +378,7 @@
 
             if (usuario) {
                 document.getElementById('dato-nombre').textContent = usuario.nombre;
+                document.getElementById('dato-grado').textContent = usuario.gradoGrupo; // Nuevo dato inyectado
                 document.getElementById('dato-cargo').textContent = usuario.cargo;
                 document.getElementById('dato-vigencia').textContent = usuario.vencimiento;
                 document.getElementById('dato-ingreso').textContent = usuario.ingreso;
@@ -446,14 +455,15 @@
                 return;
             }
 
-            let csvContent = "ID,Nombre,Cargo,Hora Ingreso,Hora Salida\n";
+            // --- EXPORTACIÓN ACTUALIZADA CON GRADO Y GRUPO ---
+            let csvContent = "ID,Nombre,Grado/Grupo,Cargo,Hora Ingreso,Hora Salida\n";
 
             for (const codigo in registrosDiarios) {
                 const registro = registrosDiarios[codigo];
                 const usuario = baseDeDatos.find(u => u.id.toLowerCase() === codigo);
                 
                 if (usuario) {
-                    csvContent += `"${usuario.id}","${usuario.nombre}","${usuario.cargo}","${registro.horaIngreso}","${registro.horaSalida}"\n`;
+                    csvContent += `"${usuario.id}","${usuario.nombre}","${usuario.gradoGrupo}","${usuario.cargo}","${registro.horaIngreso}","${registro.horaSalida}"\n`;
                 }
             }
 
