@@ -4,15 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Control de Asistencia</title>
-    
+
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
-    
+
     <style>
         :root {
             --bg-pastel: #fdfbf7;
             --primary-pastel: #a3c4f3;
             --secondary-pastel: #f1c0e8;
+            --tertiary-pastel: #b9fbc0;
             --text-color: #4a4e69;
             --card-bg: #ffffff;
             --ok-bg: #d4edda;
@@ -26,19 +27,19 @@
             --warning-text: #856404;
         }
 
-        body { 
-            font-family: 'Poppins', sans-serif; 
-            margin: 0; 
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
             padding: 0;
-            background-color: var(--bg-pastel); 
+            background-color: var(--bg-pastel);
             color: var(--text-color);
             display: flex;
             flex-direction: column;
             min-height: 100vh;
-            user-select: none; 
+            user-select: none;
             -webkit-user-select: none;
         }
-        
+
         header {
             background-color: var(--card-bg);
             padding: 15px 20px;
@@ -50,7 +51,7 @@
         header h2 { margin: 0; font-size: 1.4rem; }
 
         .contenedor-principal {
-            flex: 1; 
+            flex: 1;
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -61,8 +62,33 @@
             box-sizing: border-box;
         }
 
+        .panel-config {
+            background-color: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.06);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+
         @media (min-width: 768px) {
-            .contenedor-principal {
+            .panel-config {
+                flex-direction: row;
+                justify-content: center;
+            }
+        }
+
+        .contenedor-paneles-inferiores {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .contenedor-paneles-inferiores {
                 flex-direction: row;
                 align-items: flex-start;
             }
@@ -84,18 +110,45 @@
             margin-bottom: 15px;
         }
 
-        #reader { width: 100%; border-radius: 8px; overflow: hidden; }
-        
-        #resultado-box { 
-            padding: 15px; 
-            border-radius: 8px; 
-            font-size: 1.05rem; 
-            font-weight: 600; 
+        .btn-cargar, .btn-descargar {
+            display: inline-block;
+            color: var(--text-color);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
             text-align: center;
-            display: none; 
+            width: 100%;
+            max-width: 280px;
+        }
+
+        .btn-cargar {
+            background-color: var(--primary-pastel);
+            border: 2px solid #8eb4e6;
+        }
+
+        .btn-descargar {
+            background-color: var(--tertiary-pastel);
+            border: 2px solid #96e09e;
+        }
+
+        .btn-cargar:active, .btn-descargar:active {
+            transform: scale(0.95);
+        }
+
+        #reader { width: 100%; border-radius: 8px; overflow: hidden; }
+
+        #resultado-box {
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            text-align: center;
+            display: none;
             animation: fadeIn 0.4s ease;
         }
-        
+
         .info-alumno {
             display: none;
             margin-top: 15px;
@@ -125,32 +178,60 @@
             color: #6c757d;
             background-color: var(--card-bg);
             border-top: 1px solid #e9ecef;
-            margin-top: auto; 
+            margin-top: auto;
+        }
+
+        #cam-error {
+            display: none;
+            padding: 12px;
+            border-radius: 8px;
+            background-color: var(--warning-bg);
+            color: var(--warning-text);
+            border: 1px solid var(--warning-border);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
     <header>
-        <h2>🎫 Control de Asistencia</h2>
+        <h2>🎫 Control de Asistencia Institucional</h2>
     </header>
-    
+
     <div class="contenedor-principal">
-        <div class="panel">
-            <h3 class="panel-titulo">Escanear Credencial</h3>
-            <div id="reader"></div>
+
+        <div class="panel-config">
+            <div>
+                <label for="csv-upload" class="btn-cargar">📥 Cargar Base de Datos</label>
+                <input type="file" id="csv-upload" accept=".csv" style="display: none;">
+            </div>
+            <div>
+                <button id="btn-descargar" class="btn-descargar">📤 Exportar Entradas y Salidas</button>
+            </div>
+            <p id="db-status" style="font-size: 0.95rem; font-weight: 600; width: 100%; margin: 0;"></p>
         </div>
 
-        <div class="panel">
-            <h3 class="panel-titulo">Información del Alumno</h3>
-            <div id="resultado-box"></div>
+        <div class="contenedor-paneles-inferiores">
+            <div class="panel">
+                <h3 class="panel-titulo">Escanear Credencial</h3>
+                <div id="cam-error"></div>
+                <div id="reader"></div>
+            </div>
 
-            <div id="info-alumno" class="info-alumno">
-                <p><strong>👨‍🎓 Nombre:</strong> <span id="dato-nombre"></span></p>
-                <p><strong>📅 Vigencia:</strong> <span id="dato-vigencia"></span></p>
-                <hr style="border: 0; border-top: 1px solid #dee2e6; margin: 15px 0;">
-                <p><strong>🕒 Horario de Ingreso:</strong> <span id="dato-ingreso"></span></p>
-                <p><strong>🚪 Horario de Salida:</strong> <span id="dato-salida"></span></p>
+            <div class="panel">
+                <h3 class="panel-titulo">Información de la Persona</h3>
+                <div id="resultado-box"></div>
+
+                <div id="info-alumno" class="info-alumno">
+                    <p><strong>👤 Nombre:</strong> <span id="dato-nombre"></span></p>
+                    <p><strong>💼 Cargo:</strong> <span id="dato-cargo"></span></p>
+                    <p><strong>📅 Vigencia:</strong> <span id="dato-vigencia"></span></p>
+                    <hr style="border: 0; border-top: 1px solid #dee2e6; margin: 15px 0;">
+                    <p><strong>🕒 Ingreso (BD):</strong> <span id="dato-ingreso"></span></p>
+                    <p><strong>🚪 Salida (BD):</strong> <span id="dato-salida"></span></p>
+                </div>
             </div>
         </div>
     </div>
@@ -160,31 +241,135 @@
     </footer>
 
     <script>
-        let baseDeDatos = []; 
-
-        // Cargar el archivo JSON al iniciar
-        async function cargarDatos() {
-            try {
-                const respuesta = await fetch('alumnos.json'); 
-                baseDeDatos = await respuesta.json(); 
-            } catch (error) {
-                mostrarMensaje('error', '❌ Error al cargar la base de datos.');
-            }
-        }
-
-        window.onload = cargarDatos;
+        let baseDeDatos = [];
+        let registrosDiarios = {}; 
+        let fechaMemoria = new Date().toDateString(); 
+        let escaneoPausado = false;
 
         const resultadoBox = document.getElementById('resultado-box');
         const infoAlumnoBox = document.getElementById('info-alumno');
-        let escaneoPausado = false; 
+
+        window.onload = () => {
+            try {
+                const datosGuardados = localStorage.getItem('institucionDB');
+                if (datosGuardados) {
+                    baseDeDatos = JSON.parse(datosGuardados);
+                    actualizarEstadoDB(true);
+                } else {
+                    actualizarEstadoDB(false);
+                }
+            } catch (e) {
+                baseDeDatos = [];
+                actualizarEstadoDB(false);
+            }
+
+            try {
+                const registrosGuardados = localStorage.getItem('asistenciasHoy');
+                const fechaGuardada = localStorage.getItem('fechaAsistencias');
+                const hoyString = new Date().toDateString();
+                
+                if (registrosGuardados && fechaGuardada === hoyString) {
+                    registrosDiarios = JSON.parse(registrosGuardados);
+                    fechaMemoria = fechaGuardada;
+                } else {
+                    registrosDiarios = {};
+                    fechaMemoria = hoyString;
+                    localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios));
+                    localStorage.setItem('fechaAsistencias', fechaMemoria);
+                }
+            } catch (e) {
+                registrosDiarios = {};
+            }
+
+            iniciarLector();
+        };
+
+        function actualizarEstadoDB(cargada) {
+            const status = document.getElementById('db-status');
+            if (cargada) {
+                status.innerHTML = `✅ Base de datos activa con <strong>${baseDeDatos.length}</strong> registros.`;
+                status.style.color = "var(--ok-text)";
+            } else {
+                status.innerHTML = `⚠️ Sistema vacío. Carga un archivo CSV para comenzar.`;
+                status.style.color = "var(--error-text)";
+            }
+        }
+
+        document.getElementById('csv-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) { procesarCSV(event.target.result); };
+            reader.onerror = function() { alert('Error al leer el archivo.'); };
+            reader.readAsText(file, 'UTF-8');
+            e.target.value = '';
+        });
+
+        function parsearLineaCSV(linea) {
+            const resultado = [];
+            let campoActual = '';
+            let dentroComillas = false;
+            for (let i = 0; i < linea.length; i++) {
+                const c = linea[i];
+                if (c === '"') {
+                    if (dentroComillas && linea[i + 1] === '"') { campoActual += '"'; i++; } 
+                    else { dentroComillas = !dentroComillas; }
+                } else if (c === ',' && !dentroComillas) {
+                    resultado.push(campoActual);
+                    campoActual = '';
+                } else {
+                    campoActual += c;
+                }
+            }
+            resultado.push(campoActual);
+            return resultado.map(v => v.trim());
+        }
+
+        function procesarCSV(texto) {
+            const textoLimpio = texto.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            const lineas = textoLimpio.split('\n');
+            const dataTemporal = [];
+
+            for (let i = 1; i < lineas.length; i++) {
+                if (lineas[i].trim() === '') continue;
+                const columnas = parsearLineaCSV(lineas[i]);
+                if (columnas.length >= 6 && columnas[0] !== '') {
+                    dataTemporal.push({
+                        id: columnas[0], nombre: columnas[1], vencimiento: columnas[2],
+                        ingreso: columnas[3], salida: columnas[4], cargo: columnas[5]
+                    });
+                }
+            }
+
+            if (dataTemporal.length > 0) {
+                baseDeDatos = dataTemporal;
+                localStorage.setItem('institucionDB', JSON.stringify(baseDeDatos));
+                actualizarEstadoDB(true);
+                alert(`¡Éxito! Se cargaron ${baseDeDatos.length} registros.`);
+            } else {
+                alert('Error: El archivo CSV debe tener 6 columnas (ID, Nombre, Vencimiento, Ingreso, Salida, Cargo).');
+            }
+        }
+
+        function parsearFecha(texto) {
+            if (!texto) return null;
+            const limpio = texto.trim();
+            let m = limpio.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+            if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+            m = limpio.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+            if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+            const intento = new Date(limpio);
+            return isNaN(intento.getTime()) ? null : intento;
+        }
 
         function mostrarMensaje(estado, texto, usuario = null) {
-            resultadoBox.className = estado; 
+            resultadoBox.className = estado;
             resultadoBox.innerHTML = texto;
             resultadoBox.style.display = 'block';
 
             if (usuario) {
                 document.getElementById('dato-nombre').textContent = usuario.nombre;
+                document.getElementById('dato-cargo').textContent = usuario.cargo;
                 document.getElementById('dato-vigencia').textContent = usuario.vencimiento;
                 document.getElementById('dato-ingreso').textContent = usuario.ingreso;
                 document.getElementById('dato-salida').textContent = usuario.salida;
@@ -195,41 +380,141 @@
         }
 
         function validarAcceso(codigoLeido) {
-            const usuario = baseDeDatos.find(alumno => alumno.id === codigoLeido);
+            const hoyString = new Date().toDateString();
+            if (hoyString !== fechaMemoria) {
+                registrosDiarios = {};
+                fechaMemoria = hoyString;
+                localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios));
+                localStorage.setItem('fechaAsistencias', fechaMemoria);
+            }
 
+            const codigo = (codigoLeido || '').trim().toLowerCase();
+            if (baseDeDatos.length === 0) {
+                mostrarMensaje('error', '❌ Error: Base de datos no cargada.');
+                return;
+            }
+
+            const usuario = baseDeDatos.find(persona => persona.id.toLowerCase() === codigo);
             if (!usuario) {
-                mostrarMensaje('error', '❌ Credencial no registrada.');
+                mostrarMensaje('vencido', '❌ ACCESO DENEGADO<br><small>Credencial no registrada en el sistema.</small>');
+                return;
+            }
+
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            const fechaVencimiento = parsearFecha(usuario.vencimiento);
+
+            if (!fechaVencimiento) {
+                mostrarMensaje('error', `⚠️ Error en la base de datos.<br><small>Formato de fecha inválido.</small>`, usuario);
                 return;
             }
             
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0); 
-            const fechaVencimiento = new Date(usuario.vencimiento + "T00:00:00");
-
+            fechaVencimiento.setHours(0, 0, 0, 0);
             if (hoy > fechaVencimiento) {
                 mostrarMensaje('vencido', `🚨 ACCESO DENEGADO<br><small>Credencial vencida el ${usuario.vencimiento}</small>`, usuario);
-            } else {
-                mostrarMensaje('ok', `✅ ACCESO PERMITIDO<br><small>Asistencia registrada</small>`, usuario);
+                return;
+            }
+
+            // MODIFICACIÓN: Ahora guardamos un objeto con las horas exactas
+            let estadoActual = registrosDiarios[codigo];
+            
+            // Compatibilidad si hay datos viejos guardados como texto plano en el teléfono
+            if (typeof estadoActual === 'string') {
+                estadoActual = { estado: estadoActual, horaIngreso: 'Previa', horaSalida: '---' };
+            }
+
+            const horaActual = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            if (!estadoActual) {
+                registrosDiarios[codigo] = { estado: 'ingreso', horaIngreso: horaActual, horaSalida: '---' };
+                localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios)); 
+                mostrarMensaje('ok', `✅ INGRESO REGISTRADO<br><strong>Hora de llegada: ${horaActual}</strong>`, usuario);
+            } 
+            else if (estadoActual.estado === 'ingreso') {
+                registrosDiarios[codigo].estado = 'salida';
+                registrosDiarios[codigo].horaSalida = horaActual;
+                localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios)); 
+                mostrarMensaje('ok', `👋 SALIDA REGISTRADA<br><strong>Hora de salida: ${horaActual}</strong>`, usuario);
+            } 
+            else {
+                mostrarMensaje('error', `⚠️ REGISTRO DUPLICADO<br><small>Esta credencial ya registró su salida hoy.</small>`, usuario);
             }
         }
 
-        function onScanSuccess(decodedText, decodedResult) {
-            if (escaneoPausado) return; 
-            escaneoPausado = true; 
-            
-            validarAcceso(decodedText);
+        // --- FUNCIÓN DE EXPORTACIÓN EXCEL/CSV ---
+        document.getElementById('btn-descargar').addEventListener('click', () => {
+            if (Object.keys(registrosDiarios).length === 0) {
+                alert('No hay registros de asistencia el día de hoy para exportar.');
+                return;
+            }
 
+            // Encabezados del archivo Excel
+            let csvContent = "ID,Nombre,Cargo,Hora Ingreso,Hora Salida\n";
+
+            // Buscar cada registro del día en la base de datos para ponerle nombre y cargo
+            for (const codigo in registrosDiarios) {
+                const registro = registrosDiarios[codigo];
+                const usuario = baseDeDatos.find(u => u.id.toLowerCase() === codigo);
+                
+                if (usuario) {
+                    csvContent += `"${usuario.id}","${usuario.nombre}","${usuario.cargo}","${registro.horaIngreso}","${registro.horaSalida}"\n`;
+                }
+            }
+
+            // Crear el archivo con compatibilidad para caracteres latinos (UTF-8)
+            const nombreArchivo = `Reporte_Asistencia_${new Date().toISOString().split('T')[0]}.csv`;
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+
+            // Detectar si el celular soporta el menú nativo de "Compartir" (WhatsApp, Correo, etc.)
+            const file = new File([blob], nombreArchivo, { type: 'text/csv' });
+            
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    title: 'Reporte de Asistencia',
+                    text: 'Se adjunta el reporte de entradas y salidas del día.',
+                    files: [file]
+                }).catch(error => console.log('Operación de compartir cancelada', error));
+            } else {
+                // Descarga clásica si se usa en una computadora
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = nombreArchivo;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        function onScanSuccess(decodedText) {
+            if (escaneoPausado) return;
+            escaneoPausado = true;
+            validarAcceso(decodedText);
             setTimeout(() => {
                 resultadoBox.style.display = 'none';
                 infoAlumnoBox.style.display = 'none';
                 escaneoPausado = false;
-            }, 4000); 
+            }, 3000);
         }
 
-        const html5QrcodeScanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false
-        );
-        html5QrcodeScanner.render(onScanSuccess);
+        function onScanFailure() {}
+
+        function iniciarLector() {
+            const camError = document.getElementById('cam-error');
+            if (typeof Html5QrcodeScanner === 'undefined') {
+                camError.style.display = 'block';
+                camError.textContent = '⚠️ No se pudo cargar la librería del lector QR. Revisa tu conexión a internet.';
+                return;
+            }
+            try {
+                const html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
+                html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            } catch (e) {
+                camError.style.display = 'block';
+                camError.textContent = '⚠️ No se pudo iniciar la cámara. Verifica permisos.';
+            }
+        }
     </script>
 </body>
 </html>
