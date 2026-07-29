@@ -32,6 +32,11 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Configurar permisos de cámara en Android
+        run: |
+          sed -i '/<\/manifest>/i \    <uses-permission android:name="android.permission.CAMERA" />' android/app/src/main/AndroidManifest.xml
+          sed -i '/<\/manifest>/i \    <uses-feature android:name="android.hardware.camera" android:required="true" />' android/app/src/main/AndroidManifest.xml
+
       - name: Dar permisos de ejecución a Gradle
         run: chmod +x android/gradlew
 
