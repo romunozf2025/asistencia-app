@@ -6,6 +6,8 @@
     <title>Control de Asistencia</title>
 
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
 
     <style>
@@ -74,13 +76,6 @@
             align-items: center;
         }
 
-        @media (min-width: 768px) {
-            .panel-config {
-                flex-direction: row;
-                justify-content: center;
-            }
-        }
-
         .panel {
             background-color: var(--card-bg);
             border-radius: 15px;
@@ -100,7 +95,6 @@
 
         .btn-cargar, .btn-descargar {
             display: inline-block;
-            color: var(--text-color);
             padding: 10px 20px;
             border-radius: 8px;
             font-weight: 600;
@@ -108,17 +102,15 @@
             transition: 0.3s;
             text-align: center;
             width: 100%;
-            max-width: 280px;
+            border: 2px solid;
+            box-sizing: border-box;
         }
 
         .btn-cargar {
             background-color: var(--primary-pastel);
-            border: 2px solid #8eb4e6;
-        }
-
-        .btn-descargar {
-            background-color: var(--tertiary-pastel);
-            border: 2px solid #96e09e;
+            border-color: #8eb4e6;
+            color: var(--text-color);
+            max-width: 280px;
         }
 
         .btn-cargar:active, .btn-descargar:active {
@@ -163,6 +155,7 @@
             font-weight: 600;
             text-align: center;
             margin-bottom: 10px;
+            transition: all 0.3s ease;
         }
 
         .info-alumno {
@@ -222,13 +215,19 @@
 
     <div class="contenedor-principal">
         <div class="panel-config">
-            <div>
+            <div style="width: 100%;">
                 <label for="csv-upload" class="btn-cargar">📥 Cargar Base de Datos</label>
                 <input type="file" id="csv-upload" accept=".csv, text/csv, text/plain, */*" style="display: none;">
             </div>
-            <div>
-                <button id="btn-descargar" class="btn-descargar">📤 Compartir Entradas y Salidas</button>
+            
+            <div style="width: 100%; margin-top: 5px;">
+                <p style="margin: 0 0 10px 0; font-size: 0.9rem; color: var(--text-color);"><strong>Exportar Asistencias del Día:</strong></p>
+                <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                    <button id="btn-csv" class="btn-descargar" style="flex: 1; min-width: 130px; background-color: #d4edda; border-color: #c3e6cb; color: #155724;">📊 Excel (CSV)</button>
+                    <button id="btn-pdf" class="btn-descargar" style="flex: 1; min-width: 130px; background-color: #f8d7da; border-color: #f5c6cb; color: #721c24;">📄 PDF</button>
+                </div>
             </div>
+
             <p id="db-status" style="font-size: 0.95rem; font-weight: 600; width: 100%; margin: 0;"></p>
         </div>
 
@@ -239,7 +238,7 @@
         </div>
     </div>
 
-    <!-- VENTANA FLOTANTE (MODAL) ACTUALIZADA -->
+    <!-- VENTANA FLOTANTE (MODAL) CON FECHA Y HORA -->
     <div id="modal-overlay" class="modal-overlay">
         <div class="modal-content">
             <div id="resultado-box"></div>
@@ -251,9 +250,9 @@
                 
                 <hr style="border: 0; border-top: 1px solid #dee2e6; margin: 15px 0;">
                 
-                <!-- SECCIÓN DE HORA REAL Y ESTATUS -->
-                <p style="text-align: center; font-size: 1.1rem; margin-bottom: 5px;">
-                    <strong>⏰ Hora de Escaneo: <span id="dato-hora-real" style="color: var(--text-color);"></span></strong>
+                <p style="text-align: center; font-size: 1.1rem; margin-bottom: 5px; line-height: 1.5;">
+                    <strong>📅 Fecha: <span id="dato-fecha-real" style="color: var(--text-color);"></span></strong><br>
+                    <strong>⏰ Hora: <span id="dato-hora-real" style="color: var(--text-color);"></span></strong>
                 </p>
                 <div style="text-align: center; margin-top: 10px;">
                     <span id="dato-estatus" class="badge-estatus"></span>
@@ -378,9 +377,9 @@
                 baseDeDatos = dataTemporal;
                 localStorage.setItem('institucionDB', JSON.stringify(baseDeDatos));
                 actualizarEstadoDB(true);
-                alert(`¡Éxito! Se cargaron ${baseDeDatos.length} registros con formato de 10 columnas.`);
+                alert(`¡Éxito! Se cargaron ${baseDeDatos.length} registros.`);
             } else {
-                alert('Error: El archivo CSV no coincide con la plantilla. Asegúrate de tener las 10 columnas en orden.');
+                alert('Error: El archivo CSV no coincide con la plantilla.');
             }
         }
 
@@ -395,11 +394,8 @@
             return isNaN(intento.getTime()) ? null : intento;
         }
 
-        // --- FUNCIÓN MATEMÁTICA PARA CALCULAR EL RETARDO ---
         function evaluarRetardo(horaOficial) {
-            if (!horaOficial || horaOficial.trim() === "") return ""; // Si la celda está vacía
-
-            // Busca horas en formato "08:00 AM", "8:00", etc.
+            if (!horaOficial || horaOficial.trim() === "") return ""; 
             let match = horaOficial.match(/(\d+):(\d+)\s*(AM|PM|am|pm)?/i);
             if (!match) return "";
 
@@ -410,11 +406,9 @@
             if (ampm === "PM" && horas < 12) horas += 12;
             if (ampm === "AM" && horas === 12) horas = 0;
 
-            let ahora = new Date(); // La hora exacta del escaneo
+            let ahora = new Date(); 
             let limite = new Date();
             limite.setHours(horas, minutos, 0, 0);
-            
-            // ---> AQUI PUEDES CAMBIAR LOS MINUTOS DE TOLERANCIA <---
             limite.setMinutes(limite.getMinutes() + 15);
 
             if (ahora > limite) {
@@ -434,13 +428,14 @@
                 document.getElementById('dato-cargo').textContent = usuario.cargo;
                 
                 if (horaReal) {
+                    const fechaReal = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                    document.getElementById('dato-fecha-real').textContent = fechaReal;
                     document.getElementById('dato-hora-real').textContent = horaReal;
                 }
 
                 const estatusSpan = document.getElementById('dato-estatus');
                 if (estatusObj) {
                     estatusSpan.textContent = estatusObj.texto;
-                    // Limpiamos las clases anteriores y asignamos la nueva
                     estatusSpan.className = "badge-estatus " + estatusObj.clase;
                     estatusSpan.style.display = 'inline-block';
                 } else {
@@ -490,74 +485,146 @@
 
             let estadoActual = registrosDiarios[codigo];
             if (typeof estadoActual === 'string') {
-                estadoActual = { estado: estadoActual, horaIngreso: 'Previa', horaSalida: '---' };
+                estadoActual = { estado: estadoActual, horaIngreso: 'Previa', horaSalida: '---', timestamp: 0 };
             }
 
             const horaActualStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const timestampActual = Date.now();
 
             if (!estadoActual) {
-                // Es el primer escaneo del día = INGRESO
                 let estatusCalculado = evaluarRetardo(usuario.ingreso) || { texto: "✅ INGRESADO", clase: "estatus-atiempo" };
                 
-                registrosDiarios[codigo] = { estado: 'ingreso', horaIngreso: horaActualStr, horaSalida: '---' };
+                registrosDiarios[codigo] = { 
+                    estado: 'ingreso', 
+                    horaIngreso: horaActualStr, 
+                    horaSalida: '---',
+                    timestamp: timestampActual 
+                };
                 localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios)); 
                 
                 mostrarMensaje('ok', `INGRESO REGISTRADO`, usuario, horaActualStr, estatusCalculado);
             } 
             else if (estadoActual.estado === 'ingreso') {
-                // Es el segundo escaneo = SALIDA
-                registrosDiarios[codigo].estado = 'salida';
-                registrosDiarios[codigo].horaSalida = horaActualStr;
-                localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios)); 
-                
-                mostrarMensaje('ok', `SALIDA REGISTRADA`, usuario, horaActualStr, { texto: "🚪 SALIDA", clase: "estatus-salida" });
+                const minutosBloqueo = 5; 
+                const tiempoTranscurrido = timestampActual - (estadoActual.timestamp || 0);
+
+                if (tiempoTranscurrido < (minutosBloqueo * 60 * 1000)) {
+                    mostrarMensaje('error', `⚠️ ENTRADA YA REGISTRADA<br><small>Espera unos minutos antes de registrar tu salida.</small>`, usuario, horaActualStr, null);
+                } else {
+                    registrosDiarios[codigo].estado = 'salida';
+                    registrosDiarios[codigo].horaSalida = horaActualStr;
+                    registrosDiarios[codigo].timestamp = timestampActual;
+                    localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios)); 
+                    
+                    mostrarMensaje('ok', `SALIDA REGISTRADA`, usuario, horaActualStr, { texto: "🚪 SALIDA", clase: "estatus-salida" });
+                }
             } 
             else {
                 mostrarMensaje('error', `⚠️ REGISTRO DUPLICADO<br><small>Ya registró su salida hoy.</small>`, usuario, horaActualStr, null);
             }
         }
 
-        document.getElementById('btn-descargar').addEventListener('click', () => {
+        function compartirODescargarArchivo(blob, fileName) {
+            const file = new File([blob], fileName, { type: blob.type });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    title: 'Reporte de Asistencia',
+                    files: [file]
+                }).catch(error => { console.log('Operación de compartir cancelada', error); });
+            } else {
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    const a = document.createElement('a');
+                    a.href = reader.result;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+                reader.readAsDataURL(blob);
+            }
+        }
+
+        document.getElementById('btn-csv').addEventListener('click', () => {
             if (Object.keys(registrosDiarios).length === 0) {
                 alert('No hay registros de asistencia el día de hoy para exportar.');
                 return;
             }
-
-            let contenidoExcel = "ID\tNombre\tGrado/Grupo\tCargo\tHora Ingreso\tHora Salida\n";
-
+            let csvContent = "\uFEFFID,Nombre,Grado/Grupo,Cargo,Hora Ingreso,Hora Salida\n";
             for (const codigo in registrosDiarios) {
-                const registro = registrosDiarios[codigo];
-                const usuario = baseDeDatos.find(u => u.id.toLowerCase() === codigo);
-                
-                if (usuario) {
-                    contenidoExcel += `${usuario.id}\t${usuario.nombre}\t${usuario.gradoGrupo}\t${usuario.cargo}\t${registro.horaIngreso}\t${registro.horaSalida}\n`;
+                const r = registrosDiarios[codigo];
+                const u = baseDeDatos.find(user => user.id.toLowerCase() === codigo);
+                if (u) {
+                    csvContent += `"${u.id}","${u.nombre}","${u.gradoGrupo}","${u.cargo}","${r.horaIngreso}","${r.horaSalida}"\n`;
+                }
+            }
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const fileName = `Asistencia_${new Date().toISOString().split('T')[0]}.csv`;
+            compartirODescargarArchivo(blob, fileName);
+        });
+
+        document.getElementById('btn-pdf').addEventListener('click', () => {
+            if (Object.keys(registrosDiarios).length === 0) {
+                alert('No hay registros de asistencia el día de hoy para exportar.');
+                return;
+            }
+            if (!window.jspdf) {
+                alert('La librería PDF no se ha cargado. Verifica tu conexión a internet.');
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(16);
+            doc.text("Reporte de Asistencia Institucional", 14, 15);
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(`Fecha: ${new Date().toLocaleDateString()}`, 14, 22);
+
+            const bodyData = [];
+            for (const codigo in registrosDiarios) {
+                const r = registrosDiarios[codigo];
+                const u = baseDeDatos.find(user => user.id.toLowerCase() === codigo);
+                if (u) {
+                    bodyData.push([u.id, u.nombre, u.gradoGrupo, u.cargo, r.horaIngreso, r.horaSalida]);
                 }
             }
 
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Reporte de Asistencia',
-                    text: contenidoExcel
-                }).catch(error => {
-                    console.log('Operación cancelada', error);
-                });
-            } else {
-                navigator.clipboard.writeText(contenidoExcel).then(() => {
-                    alert("¡Datos copiados! Pega en Excel.");
-                }).catch(() => {
-                    alert("No se pudo exportar.");
-                });
-            }
+            doc.autoTable({
+                startY: 28,
+                head: [['ID', 'Nombre', 'Grado/Grupo', 'Cargo', 'Ingreso', 'Salida']],
+                body: bodyData,
+                theme: 'striped',
+                styles: { fontSize: 8 },
+                headStyles: { fillColor: [163, 196, 243] } 
+            });
+
+            const pdfOutput = doc.output('arraybuffer');
+            const blob = new Blob([pdfOutput], { type: 'application/pdf' });
+            const fileName = `Asistencia_${new Date().toISOString().split('T')[0]}.pdf`;
+            compartirODescargarArchivo(blob, fileName);
         });
 
+        // --- SISTEMA DE TRANSICIÓN: "SIGUIENTE CREDENCIAL" ---
         function onScanSuccess(decodedText) {
             if (escaneoPausado) return;
             escaneoPausado = true;
             validarAcceso(decodedText);
             
+            // Primer temporizador: Muestra los datos por 3 segundos
             setTimeout(() => {
-                modalOverlay.style.display = 'none'; 
-                escaneoPausado = false; 
+                // Ocultamos la información del alumno actual
+                infoAlumnoBox.style.display = 'none';
+                
+                // Cambiamos el mensaje principal para el siguiente alumno
+                resultadoBox.className = 'ok';
+                resultadoBox.innerHTML = '🔄 Siguiente credencial...';
+                
+                // Segundo temporizador: Cierra la ventana y reactiva la cámara tras 1.5 segundos
+                setTimeout(() => {
+                    modalOverlay.style.display = 'none'; 
+                    escaneoPausado = false; 
+                }, 1500); 
+
             }, 4000); 
         }
 
