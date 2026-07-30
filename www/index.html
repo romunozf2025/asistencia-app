@@ -57,7 +57,7 @@
             gap: 20px;
             padding: 20px;
             width: 100%;
-            max-width: 900px;
+            max-width: 700px; 
             margin: 0 auto;
             box-sizing: border-box;
         }
@@ -81,25 +81,13 @@
             }
         }
 
-        .contenedor-paneles-inferiores {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        @media (min-width: 768px) {
-            .contenedor-paneles-inferiores {
-                flex-direction: row;
-                align-items: flex-start;
-            }
-        }
-
         .panel {
             background-color: var(--card-bg);
             border-radius: 15px;
             padding: 20px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.06);
-            flex: 1;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .panel-titulo {
@@ -139,37 +127,69 @@
 
         #reader { width: 100%; border-radius: 8px; overflow: hidden; }
 
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.6); 
+            backdrop-filter: blur(3px); 
+            display: none; 
+            justify-content: center;
+            align-items: center;
+            z-index: 9999; 
+        }
+
+        .modal-content {
+            background-color: var(--card-bg);
+            width: 90%;
+            max-width: 400px;
+            border-radius: 15px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+            padding: 20px;
+            animation: zoomIn 0.3s ease; 
+        }
+
+        @keyframes zoomIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
         #resultado-box {
             padding: 15px;
             border-radius: 8px;
-            font-size: 1.05rem;
+            font-size: 1.1rem;
             font-weight: 600;
             text-align: center;
-            display: none;
-            animation: fadeIn 0.4s ease;
+            margin-bottom: 10px;
         }
 
         .info-alumno {
             display: none;
-            margin-top: 15px;
-            padding: 20px;
+            padding: 15px;
             background-color: #f4f6f9;
             border-radius: 10px;
             border-left: 5px solid var(--secondary-pastel);
-            animation: fadeIn 0.4s ease;
         }
 
         .info-alumno p { margin: 8px 0; font-size: 0.95rem; }
         .info-alumno strong { color: var(--text-color); }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
         .ok { background-color: var(--ok-bg); color: var(--ok-text); border: 1px solid var(--ok-border); }
         .vencido { background-color: var(--error-bg); color: var(--error-text); border: 1px solid var(--error-border); }
         .error { background-color: var(--warning-bg); color: var(--warning-text); border: 1px solid var(--warning-border); }
+
+        .badge-estatus {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+        .estatus-atiempo { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .estatus-retardo { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .estatus-salida { background-color: #e2e3e5; color: #383d41; border: 1px solid #d6d8db; }
 
         footer {
             text-align: center;
@@ -201,37 +221,42 @@
     </header>
 
     <div class="contenedor-principal">
-
         <div class="panel-config">
             <div>
                 <label for="csv-upload" class="btn-cargar">📥 Cargar Base de Datos</label>
                 <input type="file" id="csv-upload" accept=".csv, text/csv, text/plain, */*" style="display: none;">
             </div>
             <div>
-                <button id="btn-descargar" class="btn-descargar">📤 Exportar Entradas y Salidas</button>
+                <button id="btn-descargar" class="btn-descargar">📤 Compartir Entradas y Salidas</button>
             </div>
             <p id="db-status" style="font-size: 0.95rem; font-weight: 600; width: 100%; margin: 0;"></p>
         </div>
 
-        <div class="contenedor-paneles-inferiores">
-            <div class="panel">
-                <h3 class="panel-titulo">Escanear Credencial</h3>
-                <div id="cam-error"></div>
-                <div id="reader"></div>
-            </div>
+        <div class="panel">
+            <h3 class="panel-titulo">Escanear Credencial</h3>
+            <div id="cam-error"></div>
+            <div id="reader"></div>
+        </div>
+    </div>
 
-            <div class="panel">
-                <h3 class="panel-titulo">Información de la Persona</h3>
-                <div id="resultado-box"></div>
+    <!-- VENTANA FLOTANTE (MODAL) ACTUALIZADA -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <div id="resultado-box"></div>
 
-                <div id="info-alumno" class="info-alumno">
-                    <p><strong>👤 Nombre:</strong> <span id="dato-nombre"></span></p>
-                    <p><strong>🎓 Grado/Grupo:</strong> <span id="dato-grado"></span></p>
-                    <p><strong>💼 Cargo:</strong> <span id="dato-cargo"></span></p>
-                    <p><strong>📅 Vigencia:</strong> <span id="dato-vigencia"></span></p>
-                    <hr style="border: 0; border-top: 1px solid #dee2e6; margin: 15px 0;">
-                    <p><strong>🕒 Ingreso (BD):</strong> <span id="dato-ingreso"></span></p>
-                    <p><strong>🚪 Salida (BD):</strong> <span id="dato-salida"></span></p>
+            <div id="info-alumno" class="info-alumno">
+                <p><strong>👤 Nombre:</strong> <span id="dato-nombre"></span></p>
+                <p><strong>🎓 Grado/Grupo:</strong> <span id="dato-grado"></span></p>
+                <p><strong>💼 Cargo:</strong> <span id="dato-cargo"></span></p>
+                
+                <hr style="border: 0; border-top: 1px solid #dee2e6; margin: 15px 0;">
+                
+                <!-- SECCIÓN DE HORA REAL Y ESTATUS -->
+                <p style="text-align: center; font-size: 1.1rem; margin-bottom: 5px;">
+                    <strong>⏰ Hora de Escaneo: <span id="dato-hora-real" style="color: var(--text-color);"></span></strong>
+                </p>
+                <div style="text-align: center; margin-top: 10px;">
+                    <span id="dato-estatus" class="badge-estatus"></span>
                 </div>
             </div>
         </div>
@@ -247,6 +272,7 @@
         let fechaMemoria = new Date().toDateString(); 
         let escaneoPausado = false;
 
+        const modalOverlay = document.getElementById('modal-overlay');
         const resultadoBox = document.getElementById('resultado-box');
         const infoAlumnoBox = document.getElementById('info-alumno');
 
@@ -326,7 +352,6 @@
             return resultado.map(v => v.trim());
         }
 
-        // --- SECCIÓN MODIFICADA PARA 10 COLUMNAS ---
         function procesarCSV(texto) {
             const textoLimpio = texto.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
             const lineas = textoLimpio.split('\n');
@@ -336,16 +361,15 @@
                 if (lineas[i].trim() === '') continue;
                 const columnas = parsearLineaCSV(lineas[i]);
                 
-                // Aseguramos que lea tu estructura exacta de 10 columnas
                 if (columnas.length >= 9 && columnas[1] !== '') {
                     dataTemporal.push({
-                        id: columnas[1],                             // Columna B (ID)
-                        nombre: columnas[2],                         // Columna C (NOMBRE)
-                        gradoGrupo: columnas[3] + " " + columnas[4], // Columna D (GRADO) y E (GRUPO)
-                        vencimiento: columnas[6],                    // Columna G (VENCIMIENTO)
-                        ingreso: columnas[7],                        // Columna H (INGRESO)
-                        salida: columnas[8],                         // Columna I (SALIDA)
-                        cargo: columnas[9] || "Alumno"               // Columna J (CARGO)
+                        id: columnas[1],                             
+                        nombre: columnas[2],                         
+                        gradoGrupo: columnas[3] + " " + columnas[4], 
+                        vencimiento: columnas[6],                    
+                        ingreso: columnas[7],                        
+                        salida: columnas[8],                         
+                        cargo: columnas[9] || "Alumno"               
                     });
                 }
             }
@@ -371,22 +395,64 @@
             return isNaN(intento.getTime()) ? null : intento;
         }
 
-        function mostrarMensaje(estado, texto, usuario = null) {
+        // --- FUNCIÓN MATEMÁTICA PARA CALCULAR EL RETARDO ---
+        function evaluarRetardo(horaOficial) {
+            if (!horaOficial || horaOficial.trim() === "") return ""; // Si la celda está vacía
+
+            // Busca horas en formato "08:00 AM", "8:00", etc.
+            let match = horaOficial.match(/(\d+):(\d+)\s*(AM|PM|am|pm)?/i);
+            if (!match) return "";
+
+            let horas = parseInt(match[1]);
+            let minutos = parseInt(match[2]);
+            let ampm = match[3] ? match[3].toUpperCase() : null;
+
+            if (ampm === "PM" && horas < 12) horas += 12;
+            if (ampm === "AM" && horas === 12) horas = 0;
+
+            let ahora = new Date(); // La hora exacta del escaneo
+            let limite = new Date();
+            limite.setHours(horas, minutos, 0, 0);
+            
+            // ---> AQUI PUEDES CAMBIAR LOS MINUTOS DE TOLERANCIA <---
+            limite.setMinutes(limite.getMinutes() + 15);
+
+            if (ahora > limite) {
+                return { texto: "⚠️ RETARDO", clase: "estatus-retardo" };
+            } else {
+                return { texto: "✅ A TIEMPO", clase: "estatus-atiempo" };
+            }
+        }
+
+        function mostrarMensaje(estado, texto, usuario = null, horaReal = null, estatusObj = null) {
             resultadoBox.className = estado;
             resultadoBox.innerHTML = texto;
-            resultadoBox.style.display = 'block';
 
             if (usuario) {
                 document.getElementById('dato-nombre').textContent = usuario.nombre;
-                document.getElementById('dato-grado').textContent = usuario.gradoGrupo; // Nuevo dato inyectado
+                document.getElementById('dato-grado').textContent = usuario.gradoGrupo; 
                 document.getElementById('dato-cargo').textContent = usuario.cargo;
-                document.getElementById('dato-vigencia').textContent = usuario.vencimiento;
-                document.getElementById('dato-ingreso').textContent = usuario.ingreso;
-                document.getElementById('dato-salida').textContent = usuario.salida;
+                
+                if (horaReal) {
+                    document.getElementById('dato-hora-real').textContent = horaReal;
+                }
+
+                const estatusSpan = document.getElementById('dato-estatus');
+                if (estatusObj) {
+                    estatusSpan.textContent = estatusObj.texto;
+                    // Limpiamos las clases anteriores y asignamos la nueva
+                    estatusSpan.className = "badge-estatus " + estatusObj.clase;
+                    estatusSpan.style.display = 'inline-block';
+                } else {
+                    estatusSpan.style.display = 'none';
+                }
+
                 infoAlumnoBox.style.display = 'block';
             } else {
                 infoAlumnoBox.style.display = 'none';
             }
+            
+            modalOverlay.style.display = 'flex'; 
         }
 
         function validarAcceso(codigoLeido) {
@@ -406,7 +472,7 @@
 
             const usuario = baseDeDatos.find(persona => persona.id.toLowerCase() === codigo);
             if (!usuario) {
-                mostrarMensaje('vencido', '❌ ACCESO DENEGADO<br><small>Credencial no registrada en el sistema.</small>');
+                mostrarMensaje('vencido', '❌ ACCESO DENEGADO<br><small>Credencial no registrada.</small>');
                 return;
             }
 
@@ -414,38 +480,40 @@
             hoy.setHours(0, 0, 0, 0);
             const fechaVencimiento = parsearFecha(usuario.vencimiento);
 
-            if (!fechaVencimiento) {
-                mostrarMensaje('error', `⚠️ Error en la base de datos.<br><small>Formato de fecha inválido.</small>`, usuario);
-                return;
-            }
-            
-            fechaVencimiento.setHours(0, 0, 0, 0);
-            if (hoy > fechaVencimiento) {
-                mostrarMensaje('vencido', `🚨 ACCESO DENEGADO<br><small>Credencial vencida el ${usuario.vencimiento}</small>`, usuario);
-                return;
+            if (fechaVencimiento) {
+                fechaVencimiento.setHours(0, 0, 0, 0);
+                if (hoy > fechaVencimiento) {
+                    mostrarMensaje('vencido', `🚨 ACCESO DENEGADO<br><small>Credencial vencida</small>`, usuario);
+                    return;
+                }
             }
 
             let estadoActual = registrosDiarios[codigo];
-            
             if (typeof estadoActual === 'string') {
                 estadoActual = { estado: estadoActual, horaIngreso: 'Previa', horaSalida: '---' };
             }
 
-            const horaActual = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const horaActualStr = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
             if (!estadoActual) {
-                registrosDiarios[codigo] = { estado: 'ingreso', horaIngreso: horaActual, horaSalida: '---' };
+                // Es el primer escaneo del día = INGRESO
+                let estatusCalculado = evaluarRetardo(usuario.ingreso) || { texto: "✅ INGRESADO", clase: "estatus-atiempo" };
+                
+                registrosDiarios[codigo] = { estado: 'ingreso', horaIngreso: horaActualStr, horaSalida: '---' };
                 localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios)); 
-                mostrarMensaje('ok', `✅ INGRESO REGISTRADO<br><strong>Hora de llegada: ${horaActual}</strong>`, usuario);
+                
+                mostrarMensaje('ok', `INGRESO REGISTRADO`, usuario, horaActualStr, estatusCalculado);
             } 
             else if (estadoActual.estado === 'ingreso') {
+                // Es el segundo escaneo = SALIDA
                 registrosDiarios[codigo].estado = 'salida';
-                registrosDiarios[codigo].horaSalida = horaActual;
+                registrosDiarios[codigo].horaSalida = horaActualStr;
                 localStorage.setItem('asistenciasHoy', JSON.stringify(registrosDiarios)); 
-                mostrarMensaje('ok', `👋 SALIDA REGISTRADA<br><strong>Hora de salida: ${horaActual}</strong>`, usuario);
+                
+                mostrarMensaje('ok', `SALIDA REGISTRADA`, usuario, horaActualStr, { texto: "🚪 SALIDA", clase: "estatus-salida" });
             } 
             else {
-                mostrarMensaje('error', `⚠️ REGISTRO DUPLICADO<br><small>Esta credencial ya registró su salida hoy.</small>`, usuario);
+                mostrarMensaje('error', `⚠️ REGISTRO DUPLICADO<br><small>Ya registró su salida hoy.</small>`, usuario, horaActualStr, null);
             }
         }
 
@@ -455,38 +523,30 @@
                 return;
             }
 
-            // --- EXPORTACIÓN ACTUALIZADA CON GRADO Y GRUPO ---
-            let csvContent = "ID,Nombre,Grado/Grupo,Cargo,Hora Ingreso,Hora Salida\n";
+            let contenidoExcel = "ID\tNombre\tGrado/Grupo\tCargo\tHora Ingreso\tHora Salida\n";
 
             for (const codigo in registrosDiarios) {
                 const registro = registrosDiarios[codigo];
                 const usuario = baseDeDatos.find(u => u.id.toLowerCase() === codigo);
                 
                 if (usuario) {
-                    csvContent += `"${usuario.id}","${usuario.nombre}","${usuario.gradoGrupo}","${usuario.cargo}","${registro.horaIngreso}","${registro.horaSalida}"\n`;
+                    contenidoExcel += `${usuario.id}\t${usuario.nombre}\t${usuario.gradoGrupo}\t${usuario.cargo}\t${registro.horaIngreso}\t${registro.horaSalida}\n`;
                 }
             }
 
-            const nombreArchivo = `Reporte_Asistencia_${new Date().toISOString().split('T')[0]}.csv`;
-            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
-
-            const file = new File([blob], nombreArchivo, { type: 'text/csv' });
-            
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            if (navigator.share) {
                 navigator.share({
                     title: 'Reporte de Asistencia',
-                    text: 'Se adjunta el reporte de entradas y salidas del día.',
-                    files: [file]
-                }).catch(error => console.log('Operación de compartir cancelada', error));
+                    text: contenidoExcel
+                }).catch(error => {
+                    console.log('Operación cancelada', error);
+                });
             } else {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = nombreArchivo;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                navigator.clipboard.writeText(contenidoExcel).then(() => {
+                    alert("¡Datos copiados! Pega en Excel.");
+                }).catch(() => {
+                    alert("No se pudo exportar.");
+                });
             }
         });
 
@@ -494,11 +554,11 @@
             if (escaneoPausado) return;
             escaneoPausado = true;
             validarAcceso(decodedText);
+            
             setTimeout(() => {
-                resultadoBox.style.display = 'none';
-                infoAlumnoBox.style.display = 'none';
-                escaneoPausado = false;
-            }, 3000);
+                modalOverlay.style.display = 'none'; 
+                escaneoPausado = false; 
+            }, 3000); 
         }
 
         function onScanFailure() {}
@@ -507,7 +567,7 @@
             const camError = document.getElementById('cam-error');
             if (typeof Html5QrcodeScanner === 'undefined') {
                 camError.style.display = 'block';
-                camError.textContent = '⚠️ No se pudo cargar la librería del lector QR. Revisa tu conexión a internet.';
+                camError.textContent = '⚠️ No se pudo cargar la librería del lector QR. Revisa tu internet.';
                 return;
             }
             try {
@@ -515,7 +575,7 @@
                 html5QrcodeScanner.render(onScanSuccess, onScanFailure);
             } catch (e) {
                 camError.style.display = 'block';
-                camError.textContent = '⚠️ No se pudo iniciar la cámara. Verifica permisos.';
+                camError.textContent = '⚠️ Error en cámara. Verifica permisos.';
             }
         }
     </script>
