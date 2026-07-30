@@ -113,6 +113,11 @@
             max-width: 280px;
         }
 
+        button.btn-descargar {
+            font-family: inherit;
+            font-size: 0.95rem;
+        }
+
         .btn-cargar:active, .btn-descargar:active {
             transform: scale(0.95);
         }
@@ -364,7 +369,7 @@
                     dataTemporal.push({
                         id: columnas[1],                             
                         nombre: columnas[2],                         
-                        gradoGrupo: columnas[3] + " " + columnas[4], 
+                        gradoGrupo: (columnas[3] + " " + columnas[4]).trim(), 
                         vencimiento: columnas[6],                    
                         ingreso: columnas[7],                        
                         salida: columnas[8],                         
@@ -386,6 +391,7 @@
         function parsearFecha(texto) {
             if (!texto) return null;
             const limpio = texto.trim();
+            if (limpio === '') return null;
             let m = limpio.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
             if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
             m = limpio.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
@@ -395,16 +401,20 @@
         }
 
         function evaluarRetardo(horaOficial) {
-            if (!horaOficial || horaOficial.trim() === "") return ""; 
+            if (!horaOficial || horaOficial.trim() === "") return null; 
             let match = horaOficial.match(/(\d+):(\d+)\s*(AM|PM|am|pm)?/i);
-            if (!match) return "";
+            if (!match) return null;
 
-            let horas = parseInt(match[1]);
-            let minutos = parseInt(match[2]);
+            let horas = parseInt(match[1], 10);
+            let minutos = parseInt(match[2], 10);
             let ampm = match[3] ? match[3].toUpperCase() : null;
 
             if (ampm === "PM" && horas < 12) horas += 12;
             if (ampm === "AM" && horas === 12) horas = 0;
+
+            if (isNaN(horas) || isNaN(minutos) || horas < 0 || horas > 23 || minutos < 0 || minutos > 59) {
+                return null;
+            }
 
             let ahora = new Date(); 
             let limite = new Date();
@@ -460,12 +470,17 @@
             }
 
             const codigo = (codigoLeido || '').trim().toLowerCase();
+            if (codigo === '') {
+                mostrarMensaje('error', '❌ Error: Código QR vacío o ilegible.');
+                return;
+            }
+
             if (baseDeDatos.length === 0) {
                 mostrarMensaje('error', '❌ Error: Base de datos no cargada.');
                 return;
             }
 
-            const usuario = baseDeDatos.find(persona => persona.id.toLowerCase() === codigo);
+            const usuario = baseDeDatos.find(persona => (persona.id || '').toLowerCase() === codigo);
             if (!usuario) {
                 mostrarMensaje('vencido', '❌ ACCESO DENEGADO<br><small>Credencial no registrada.</small>');
                 return;
@@ -509,7 +524,8 @@
                 const tiempoTranscurrido = timestampActual - (estadoActual.timestamp || 0);
 
                 if (tiempoTranscurrido < (minutosBloqueo * 60 * 1000)) {
-                    mostrarMensaje('error', `⚠️ ENTRADA YA REGISTRADA<br><small>Espera unos minutos antes de registrar tu salida.</small>`, usuario, horaActualStr, null);
+                    const minutosRestantes = Math.ceil((minutosBloqueo * 60 * 1000 - tiempoTranscurrido) / 60000);
+                    mostrarMensaje('error', `⚠️ ENTRADA YA REGISTRADA<br><small>Espera ${minutosRestantes} min. antes de registrar tu salida.</small>`, usuario, horaActualStr, null);
                 } else {
                     registrosDiarios[codigo].estado = 'salida';
                     registrosDiarios[codigo].horaSalida = horaActualStr;
@@ -524,45 +540,83 @@
             }
         }
 
-        function compartirODescargarArchivo(blob, fileName) {
-            const file = new File([blob], fileName, { type: blob.type });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                navigator.share({
-                    title: 'Reporte de Asistencia',
-                    files: [file]
-                }).catch(error => { console.log('Operación de compartir cancelada', error); });
-            } else {
-                const reader = new FileReader();
-                reader.onloadend = function() {
-                    const a = document.createElement('a');
-                    a.href = reader.result;
-                    a.download = fileName;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
+        // --- SISTEMA MAESTRO DE EXPORTACIÓN ANTI-BLOQUEOS ---
+        function compartirODescargarArchivo(blob, fileName, textContent = null) {
+            
+            // CAPA 1: Intentar forzar el menú Compartir Archivos de Android
+            try {
+                const file = new File([blob], fileName, { type: blob.type });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({
+                        title: 'Reporte de Asistencia',
+                        files: [file]
+                    }).catch(error => { console.log('Share cancelado', error); });
+                    return; 
                 }
-                reader.readAsDataURL(blob);
+            } catch (e) {}
+
+            // CAPA 2: Si la APK rechaza el archivo, intentamos compartir el Texto Puro (Ideal para WhatsApp)
+            if (textContent && navigator.share) {
+                try {
+                    navigator.share({
+                        title: 'Asistencia del Día',
+                        text: textContent
+                    }).catch(error => { console.log('Share texto cancelado', error); });
+                    return;
+                } catch(e) {}
             }
+
+            // CAPA 3: Intento de descarga web normal 
+            const reader = new FileReader();
+            reader.onloadend = function() {
+                const a = document.createElement('a');
+                a.href = reader.result;
+                a.download = fileName;
+                a.target = "_blank";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                // CAPA 4 (EL SALVAVIDAS): Si pasa 1 segundo y la descarga falló en silencio, se activa esto
+                setTimeout(() => {
+                    if (textContent) {
+                        navigator.clipboard.writeText(textContent).then(() => {
+                            alert("⚠️ Android bloqueó la descarga del archivo por seguridad.\n\n✅ ¡Pero los datos han sido COPIADOS!\n\nAbre WhatsApp, Notas o Excel en tu celular y presiona 'Pegar'. Las columnas se separarán solas.");
+                        });
+                    } else {
+                        alert("⚠️ Android bloqueó la descarga del PDF por seguridad de la aplicación.\n\nTe sugerimos usar el botón '📊 Excel (CSV)' para poder copiar y extraer todos tus registros de asistencia sin problemas.");
+                    }
+                }, 1000); 
+            }
+            reader.readAsDataURL(blob);
         }
 
+        // GENERACIÓN DEL CSV
         document.getElementById('btn-csv').addEventListener('click', () => {
             if (Object.keys(registrosDiarios).length === 0) {
                 alert('No hay registros de asistencia el día de hoy para exportar.');
                 return;
             }
+            
             let csvContent = "\uFEFFID,Nombre,Grado/Grupo,Cargo,Hora Ingreso,Hora Salida\n";
+            let textContent = "ID\tNombre\tGrado/Grupo\tCargo\tHora Ingreso\tHora Salida\n";
+
             for (const codigo in registrosDiarios) {
                 const r = registrosDiarios[codigo];
-                const u = baseDeDatos.find(user => user.id.toLowerCase() === codigo);
+                const u = baseDeDatos.find(user => (user.id || '').toLowerCase() === codigo);
                 if (u) {
                     csvContent += `"${u.id}","${u.nombre}","${u.gradoGrupo}","${u.cargo}","${r.horaIngreso}","${r.horaSalida}"\n`;
+                    textContent += `${u.id}\t${u.nombre}\t${u.gradoGrupo}\t${u.cargo}\t${r.horaIngreso}\t${r.horaSalida}\n`;
                 }
             }
+            
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const fileName = `Asistencia_${new Date().toISOString().split('T')[0]}.csv`;
-            compartirODescargarArchivo(blob, fileName);
+            
+            compartirODescargarArchivo(blob, fileName, textContent);
         });
 
+        // GENERACIÓN DEL PDF
         document.getElementById('btn-pdf').addEventListener('click', () => {
             if (Object.keys(registrosDiarios).length === 0) {
                 alert('No hay registros de asistencia el día de hoy para exportar.');
@@ -583,10 +637,15 @@
             const bodyData = [];
             for (const codigo in registrosDiarios) {
                 const r = registrosDiarios[codigo];
-                const u = baseDeDatos.find(user => user.id.toLowerCase() === codigo);
+                const u = baseDeDatos.find(user => (user.id || '').toLowerCase() === codigo);
                 if (u) {
                     bodyData.push([u.id, u.nombre, u.gradoGrupo, u.cargo, r.horaIngreso, r.horaSalida]);
                 }
+            }
+
+            if (typeof doc.autoTable !== 'function') {
+                alert('El complemento de tablas para PDF no se ha cargado. Verifica tu conexión a internet.');
+                return;
             }
 
             doc.autoTable({
@@ -601,31 +660,32 @@
             const pdfOutput = doc.output('arraybuffer');
             const blob = new Blob([pdfOutput], { type: 'application/pdf' });
             const fileName = `Asistencia_${new Date().toISOString().split('T')[0]}.pdf`;
+            
             compartirODescargarArchivo(blob, fileName);
         });
 
         // --- SISTEMA DE TRANSICIÓN: "SIGUIENTE CREDENCIAL" ---
+        let timeoutsPendientes = [];
+
         function onScanSuccess(decodedText) {
             if (escaneoPausado) return;
             escaneoPausado = true;
             validarAcceso(decodedText);
             
-            // Primer temporizador: Muestra los datos por 3 segundos
-            setTimeout(() => {
-                // Ocultamos la información del alumno actual
+            const t1 = setTimeout(() => {
                 infoAlumnoBox.style.display = 'none';
                 
-                // Cambiamos el mensaje principal para el siguiente alumno
                 resultadoBox.className = 'ok';
                 resultadoBox.innerHTML = '🔄 Siguiente credencial...';
                 
-                // Segundo temporizador: Cierra la ventana y reactiva la cámara tras 1.5 segundos
-                setTimeout(() => {
+                const t2 = setTimeout(() => {
                     modalOverlay.style.display = 'none'; 
                     escaneoPausado = false; 
                 }, 1500); 
+                timeoutsPendientes.push(t2);
 
-            }, 4000); 
+            }, 3000); 
+            timeoutsPendientes.push(t1);
         }
 
         function onScanFailure() {}
