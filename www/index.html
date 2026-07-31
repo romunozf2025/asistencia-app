@@ -540,53 +540,54 @@
             }
         }
 
-        // --- SISTEMA MAESTRO DE EXPORTACIÓN ANTI-BLOQUEOS ---
+        // --- SISTEMA MAESTRO DE EXPORTACIÓN ANTI-BLOQUEOS (VERSIÓN EXTREMA) ---
         function compartirODescargarArchivo(blob, fileName, textContent = null) {
             
-            // CAPA 1: Intentar forzar el menú Compartir Archivos de Android
+            // Intento 1: Compartir Nativo (WhatsApp, Correo, etc.)
             try {
                 const file = new File([blob], fileName, { type: blob.type });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
                     navigator.share({
                         title: 'Reporte de Asistencia',
                         files: [file]
-                    }).catch(error => { console.log('Share cancelado', error); });
+                    }).catch(e => console.log('Share cancelado', e));
                     return; 
                 }
             } catch (e) {}
 
-            // CAPA 2: Si la APK rechaza el archivo, intentamos compartir el Texto Puro (Ideal para WhatsApp)
-            if (textContent && navigator.share) {
-                try {
-                    navigator.share({
-                        title: 'Asistencia del Día',
-                        text: textContent
-                    }).catch(error => { console.log('Share texto cancelado', error); });
-                    return;
-                } catch(e) {}
-            }
-
-            // CAPA 3: Intento de descarga web normal 
+            // Intento 2: Transformar a URL y forzar descarga
             const reader = new FileReader();
             reader.onloadend = function() {
+                const base64Url = reader.result;
+
+                // 2.1: Enlace de descarga web
                 const a = document.createElement('a');
-                a.href = reader.result;
+                a.href = base64Url;
                 a.download = fileName;
-                a.target = "_blank";
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
 
-                // CAPA 4 (EL SALVAVIDAS): Si pasa 1 segundo y la descarga falló en silencio, se activa esto
+                // 2.2: Hack para WebViews de Android (Fuerza a abrir el archivo)
+                setTimeout(() => {
+                    try {
+                        window.location.href = base64Url;
+                    } catch(e) {}
+                }, 300);
+
+                // Intento 3 (Salvavidas): Si Android bloqueó los archivos por completo
                 setTimeout(() => {
                     if (textContent) {
                         navigator.clipboard.writeText(textContent).then(() => {
-                            alert("⚠️ Android bloqueó la descarga del archivo por seguridad.\n\n✅ ¡Pero los datos han sido COPIADOS!\n\nAbre WhatsApp, Notas o Excel en tu celular y presiona 'Pegar'. Las columnas se separarán solas.");
+                            alert("✅ ¡DATOS COPIADOS AL PORTAPAPELES!\n\nTu celular bloqueó la creación del archivo por seguridad interna, pero no has perdido nada.\n\nSimplemente abre Excel, WhatsApp o tu Bloc de Notas en este celular, mantén presionado y selecciona 'Pegar'.");
+                        }).catch(() => {
+                            alert("⚠️ Bloqueo de seguridad extremo detectado. Usa una computadora para exportar.");
                         });
                     } else {
-                        alert("⚠️ Android bloqueó la descarga del PDF por seguridad de la aplicación.\n\nTe sugerimos usar el botón '📊 Excel (CSV)' para poder copiar y extraer todos tus registros de asistencia sin problemas.");
+                        // Mensaje específico si falló el PDF
+                        alert("⚠️ Android bloqueó la generación visual del PDF.\n\nPara no perder tu registro de hoy, presiona 'OK' y luego toca el botón de '📊 Excel (CSV)' para que la app copie tus datos al portapapeles automáticamente.");
                     }
-                }, 1000); 
+                }, 1500); 
             }
             reader.readAsDataURL(blob);
         }
@@ -661,6 +662,7 @@
             const blob = new Blob([pdfOutput], { type: 'application/pdf' });
             const fileName = `Asistencia_${new Date().toISOString().split('T')[0]}.pdf`;
             
+            // Como es PDF, no enviamos texto de respaldo
             compartirODescargarArchivo(blob, fileName);
         });
 
@@ -684,7 +686,7 @@
                 }, 1500); 
                 timeoutsPendientes.push(t2);
 
-            }, 3000); 
+            }, 4000); 
             timeoutsPendientes.push(t1);
         }
 
