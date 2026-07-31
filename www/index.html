@@ -210,6 +210,20 @@
             margin-bottom: 10px;
             text-align: center;
         }
+
+        /* ESTILO PARA EL TEXTAREA DE RESPALDO */
+        #texto-crudo {
+            width: 100%; 
+            height: 200px; 
+            font-size: 0.8rem;
+            padding: 10px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: scroll;
+        }
     </style>
 </head>
 <body>
@@ -243,7 +257,7 @@
         </div>
     </div>
 
-    <!-- VENTANA FLOTANTE (MODAL) CON FECHA Y HORA -->
+    <!-- VENTANA FLOTANTE PARA RESULTADOS DEL ESCANER -->
     <div id="modal-overlay" class="modal-overlay">
         <div class="modal-content">
             <div id="resultado-box"></div>
@@ -266,6 +280,18 @@
         </div>
     </div>
 
+    <!-- NUEVA VENTANA FLOTANTE PARA COPIADO MANUAL (EL SALVAVIDAS FINAL) -->
+    <div id="modal-datos-crudos" class="modal-overlay">
+        <div class="modal-content" style="max-width: 95%;">
+            <h3 style="margin-top:0; color: var(--error-text); text-align: center;">Copia Manual</h3>
+            <p style="font-size: 0.85rem; text-align: justify; margin-bottom: 10px;">
+                Tu celular bloqueó la creación del archivo. Mantén presionado el texto de abajo, selecciona <strong>"Seleccionar todo"</strong>, luego <strong>"Copiar"</strong> y pégalo en una hoja de Excel en blanco.
+            </p>
+            <textarea id="texto-crudo" readonly></textarea>
+            <button class="btn-descargar" onclick="document.getElementById('modal-datos-crudos').style.display='none'" style="margin-top: 15px; background-color: var(--primary-pastel);">Cerrar y Volver</button>
+        </div>
+    </div>
+
     <footer>
         copyright Rodrigo A. Muñoz Fuentealba
     </footer>
@@ -279,6 +305,8 @@
         const modalOverlay = document.getElementById('modal-overlay');
         const resultadoBox = document.getElementById('resultado-box');
         const infoAlumnoBox = document.getElementById('info-alumno');
+        const modalDatosCrudos = document.getElementById('modal-datos-crudos');
+        const textoCrudo = document.getElementById('texto-crudo');
 
         window.onload = () => {
             try {
@@ -470,10 +498,7 @@
             }
 
             const codigo = (codigoLeido || '').trim().toLowerCase();
-            if (codigo === '') {
-                mostrarMensaje('error', '❌ Error: Código QR vacío o ilegible.');
-                return;
-            }
+            if (codigo === '') return;
 
             if (baseDeDatos.length === 0) {
                 mostrarMensaje('error', '❌ Error: Base de datos no cargada.');
@@ -540,59 +565,40 @@
             }
         }
 
-        // --- SISTEMA MAESTRO DE EXPORTACIÓN ANTI-BLOQUEOS (VERSIÓN EXTREMA) ---
-        function compartirODescargarArchivo(blob, fileName, textContent = null) {
+        // ============================================================================
+        // NUEVO MOTOR DE EXPORTACIÓN SÍNCRONO (A PRUEBA DE BLOQUEOS EN WEBVIEWS ANDROID)
+        // ============================================================================
+
+        function copiarTextoAlternativo(text) {
+            // Este es el método heredado que funciona en el 99% de los webviews restrictivos
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
             
-            // Intento 1: Compartir Nativo (WhatsApp, Correo, etc.)
             try {
-                const file = new File([blob], fileName, { type: blob.type });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    navigator.share({
-                        title: 'Reporte de Asistencia',
-                        files: [file]
-                    }).catch(e => console.log('Share cancelado', e));
-                    return; 
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                if (successful) {
+                    alert("✅ ¡DATOS COPIADOS AL PORTAPAPELES!\n\nAbre Excel o WhatsApp y selecciona 'Pegar'.");
+                } else {
+                    mostrarModalTextoCrudo(text);
                 }
-            } catch (e) {}
-
-            // Intento 2: Transformar a URL y forzar descarga
-            const reader = new FileReader();
-            reader.onloadend = function() {
-                const base64Url = reader.result;
-
-                // 2.1: Enlace de descarga web
-                const a = document.createElement('a');
-                a.href = base64Url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-
-                // 2.2: Hack para WebViews de Android (Fuerza a abrir el archivo)
-                setTimeout(() => {
-                    try {
-                        window.location.href = base64Url;
-                    } catch(e) {}
-                }, 300);
-
-                // Intento 3 (Salvavidas): Si Android bloqueó los archivos por completo
-                setTimeout(() => {
-                    if (textContent) {
-                        navigator.clipboard.writeText(textContent).then(() => {
-                            alert("✅ ¡DATOS COPIADOS AL PORTAPAPELES!\n\nTu celular bloqueó la creación del archivo por seguridad interna, pero no has perdido nada.\n\nSimplemente abre Excel, WhatsApp o tu Bloc de Notas en este celular, mantén presionado y selecciona 'Pegar'.");
-                        }).catch(() => {
-                            alert("⚠️ Bloqueo de seguridad extremo detectado. Usa una computadora para exportar.");
-                        });
-                    } else {
-                        // Mensaje específico si falló el PDF
-                        alert("⚠️ Android bloqueó la generación visual del PDF.\n\nPara no perder tu registro de hoy, presiona 'OK' y luego toca el botón de '📊 Excel (CSV)' para que la app copie tus datos al portapapeles automáticamente.");
-                    }
-                }, 1500); 
+            } catch (err) {
+                document.body.removeChild(textArea);
+                mostrarModalTextoCrudo(text);
             }
-            reader.readAsDataURL(blob);
         }
 
-        // GENERACIÓN DEL CSV
+        function mostrarModalTextoCrudo(text) {
+            // El salvavidas final: Si nada puede copiar, le mostramos el texto al usuario
+            textoCrudo.value = text;
+            modalDatosCrudos.style.display = 'flex';
+        }
+
         document.getElementById('btn-csv').addEventListener('click', () => {
             if (Object.keys(registrosDiarios).length === 0) {
                 alert('No hay registros de asistencia el día de hoy para exportar.');
@@ -611,13 +617,30 @@
                 }
             }
             
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const fileName = `Asistencia_${new Date().toISOString().split('T')[0]}.csv`;
-            
-            compartirODescargarArchivo(blob, fileName, textContent);
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+            // Intento 1: Compartir el Archivo CSV (Nativo)
+            try {
+                const file = new File([blob], fileName, { type: blob.type });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({ title: 'Reporte Asistencia', files: [file] }).catch(e=>{});
+                    return; 
+                }
+            } catch (e) {}
+
+            // Intento 2: Compartir el Texto a WhatsApp (Nativo)
+            try {
+                if (navigator.share) {
+                    navigator.share({ title: 'Reporte Asistencia', text: textContent }).catch(e=>{});
+                    return;
+                }
+            } catch(e) {}
+
+            // Intento 3: Copiar al Portapapeles Síncrono (Si falla, pasa al intento 4 visual)
+            copiarTextoAlternativo(textContent);
         });
 
-        // GENERACIÓN DEL PDF
         document.getElementById('btn-pdf').addEventListener('click', () => {
             if (Object.keys(registrosDiarios).length === 0) {
                 alert('No hay registros de asistencia el día de hoy para exportar.');
@@ -658,15 +681,43 @@
                 headStyles: { fillColor: [163, 196, 243] } 
             });
 
+            const fileName = `Asistencia_${new Date().toISOString().split('T')[0]}.pdf`;
             const pdfOutput = doc.output('arraybuffer');
             const blob = new Blob([pdfOutput], { type: 'application/pdf' });
-            const fileName = `Asistencia_${new Date().toISOString().split('T')[0]}.pdf`;
             
-            // Como es PDF, no enviamos texto de respaldo
-            compartirODescargarArchivo(blob, fileName);
+            // Intento 1: Compartir Archivo PDF
+            try {
+                const file = new File([blob], fileName, { type: blob.type });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    navigator.share({ title: 'Reporte Asistencia', files: [file] }).catch(e=>{});
+                    return; 
+                }
+            } catch (e) {}
+
+            // Intento 2: Descarga normal en WebViews permisivos
+            try {
+                const reader = new FileReader();
+                reader.onloadend = function() {
+                    const a = document.createElement('a');
+                    a.href = reader.result;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    // Solo en caso de que Android haya matado el PDF, recomendamos CSV
+                    setTimeout(() => {
+                        alert("⚠️ Si el PDF no se abrió o descargó, Android bloqueó la acción.\n\nPor favor usa el botón '📊 Excel (CSV)' para copiar los datos sin perder información.");
+                    }, 1500);
+                }
+                reader.readAsDataURL(blob);
+            } catch (e) {
+                 alert("⚠️ Android bloqueó la generación del PDF. Usa el botón '📊 Excel (CSV)' para exportar tus datos.");
+            }
         });
 
-        // --- SISTEMA DE TRANSICIÓN: "SIGUIENTE CREDENCIAL" ---
+        // ============================================================================
+
         let timeoutsPendientes = [];
 
         function onScanSuccess(decodedText) {
